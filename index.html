@@ -20,7 +20,6 @@
         <nav class="nav" aria-label="Secciones">
           <button class="nav-item is-active" data-view="dashboard" type="button">Dashboard</button>
           <button class="nav-item" data-view="clientes" type="button">Clientes</button>
-          <button class="nav-item" data-view="dispositivos" type="button">Dispositivos</button>
           <button class="nav-item" data-view="ventas" type="button">Ventas</button>
           <button class="nav-item" data-view="comodatos" type="button">Comodatos</button>
           <button class="nav-item" data-view="cobranza" type="button">Cobranza</button>
@@ -28,7 +27,7 @@
 
         <div class="sidebar-actions">
           <button class="secondary-btn" id="exportExcelBtn" type="button">Exportar Excel</button>
-          <button class="secondary-btn danger" id="resetDemoBtn" type="button">Restaurar demo</button>
+          <button class="secondary-btn danger" id="resetDemoBtn" type="button">Restaurar datos base</button>
         </div>
       </aside>
 
@@ -49,43 +48,10 @@
 
         <section id="view-dashboard" class="view is-active">
           <div class="metric-grid" id="metricGrid"></div>
-          <div class="split-layout">
-            <section class="panel">
-              <div class="panel-header">
-                <h3>Cobranza pendiente</h3>
-                <span id="pendingTotalBadge"></span>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Cliente</th>
-                      <th>Rep</th>
-                      <th>Saldo</th>
-                      <th>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboardCobranza"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="panel-header">
-                <h3>Alertas de inventario</h3>
-                <span id="stockBadge"></span>
-              </div>
-              <div id="alertsList" class="alerts-list"></div>
-            </section>
-          </div>
         </section>
 
         <section id="view-clientes" class="view">
           <div id="clientesTable" class="data-view"></div>
-        </section>
-
-        <section id="view-dispositivos" class="view">
-          <div id="dispositivosTable" class="data-view"></div>
         </section>
 
         <section id="view-ventas" class="view">

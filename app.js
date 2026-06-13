@@ -1,4 +1,4 @@
-const STORAGE_KEY = "prokicks-control-v4";
+const STORAGE_KEY = "prokicks-control-v5";
 
 const schemas = {
   clientes: {
@@ -23,28 +23,6 @@ const schemas = {
       field("email", "Email", "email"),
       field("fuente", "Fuente", "select", false, ["Instagram", "Referencia", "LMS", "Venta directa", "Evento"]),
       field("notas", "Notas", "textarea")
-    ]
-  },
-  dispositivos: {
-    title: "Dispositivos",
-    singular: "Dispositivo",
-    columns: [
-      ["serie", "Serie"],
-      ["modelo", "Modelo"],
-      ["estado", "Estado"],
-      ["ubicacion", "Ubicación"],
-      ["responsable", "Responsable"],
-      ["cliente", "Cliente asignado"],
-      ["fechaAlta", "Fecha alta"]
-    ],
-    fields: [
-      field("serie", "Serie", "text", true),
-      field("modelo", "Modelo", "select", false, ["ProKicks Device", "Personalizado"]),
-      field("estado", "Estado", "select", true, ["EN INVENTARIO", "VENDIDO", "COMODATO", "ENVIADO", "DEVUELTO", "REVISAR"]),
-      field("ubicacion", "Ubicación"),
-      field("responsable", "Responsable", "select", false, reps()),
-      field("cliente", "Cliente asignado"),
-      field("fechaAlta", "Fecha alta", "date")
     ]
   },
   ventas: {
@@ -98,7 +76,7 @@ const schemas = {
       field("contacto", "Contacto"),
       field("rep", "Rep", "select", true, reps()),
       field("devices", "Devices", "number", true),
-      field("estado", "Estado", "select", true, ["EN USO", "DEVUELTO", "REVISAR", "PERDIDO"]),
+      field("estado", "Estado", "select", true, ["EN USO"]),
       field("fechaEntrega", "Fecha entrega"),
       field("fechaDevolucion", "Fecha devolución"),
       field("ciudad", "Ciudad"),
@@ -107,7 +85,7 @@ const schemas = {
   }
 };
 
-const views = ["dashboard", "clientes", "dispositivos", "ventas", "comodatos", "cobranza"];
+const views = ["dashboard", "clientes", "ventas", "comodatos", "cobranza"];
 let state = loadState();
 let activeView = "dashboard";
 let editing = null;
@@ -172,7 +150,6 @@ function setView(view) {
 function render() {
   renderDashboard();
   renderDataTable("clientes");
-  renderDataTable("dispositivos");
   renderDataTable("ventas");
   renderDataTable("comodatos");
   renderCobranza();
@@ -183,51 +160,25 @@ function renderDashboard() {
   const dashboard = state.settings.dashboard || {};
   const vendidas = state.ventas.filter((item) => item.estadoVenta === "VENTA CERRADA");
   const incompletas = state.ventas.filter((item) => item.estadoVenta === "VENTA INCOMPLETA");
-  const prospeccion = state.ventas.filter((item) => item.estadoVenta === "EN PROSPECCIÓN");
-  const comodatoDevices = sum(state.comodatos.filter((item) => item.estado !== "DEVUELTO"), "devices");
-  const ventaDevices = sum(vendidas.concat(incompletas), "devices");
-  const inventario = Number(state.settings.inventarioRedwood ?? state.dispositivos.filter((item) => item.estado === "EN INVENTARIO").length);
+  const comodatoDevices = sum(state.comodatos, "devices");
+  const inventario = Number(state.settings.inventarioRedwood || 0);
   const ventasCerradasCount = dashboard.ventasCerradas ?? vendidas.length;
   const ventasIncompletasCount = dashboard.ventasIncompletas ?? incompletas.length;
-  const prospeccionCount = dashboard.prospeccion ?? prospeccion.length;
   const comodatoCount = dashboard.comodato ?? comodatoDevices;
-  const totalDevices = dashboard.totalDevices ?? ventaDevices + comodatoDevices;
-  const diferencia = getDashboardDifference(totalDevices, inventario, totalProducidos);
+  const vendidosCount = dashboard.vendidos ?? 0;
+  const diferencia = getDashboardDifference(inventario, vendidosCount, comodatoCount, totalProducidos);
 
   const metrics = [
+    { label: "Total producción", value: totalProducidos, key: "totalProducidos", editable: true },
+    { label: "Total en inventario", value: inventario, key: "inventarioRedwood", editable: true },
+    { label: "Vendidos", value: vendidosCount, key: "vendidos" },
+    { label: "En comodato", value: comodatoCount, key: "comodato" },
     { label: "Ventas cerradas", value: ventasCerradasCount },
     { label: "Venta incompleta", value: ventasIncompletasCount },
-    { label: "Prospección", value: prospeccionCount },
-    { label: "En comodato", value: comodatoCount },
-    { label: "Total devices", value: totalDevices, key: "totalDevices" },
-    { label: "Inventario local", value: inventario, key: "inventarioRedwood", editable: true },
-    { label: "Producidos", value: totalProducidos, key: "totalProducidos", editable: true },
     { label: "Diferencia", value: diferencia, key: "diferencia" }
   ];
 
   els.metricGrid.innerHTML = metrics.map(renderMetric).join("");
-
-  const cobranza = getCobranzaRows();
-  document.querySelector("#pendingTotalBadge").textContent = formatCurrency(sum(cobranza, "saldo"));
-  document.querySelector("#dashboardCobranza").innerHTML = cobranza.slice(0, 6).map((item) => `
-    <tr>
-      <td>${escapeHtml(item.cliente)}</td>
-      <td>${escapeHtml(item.rep)}</td>
-      <td>${formatCurrency(item.saldo)}</td>
-      <td>${escapeHtml(item.accion)}</td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" class="empty-state">Sin saldos pendientes</td></tr>`;
-
-  const alerts = [];
-  if (diferencia !== 0) alerts.push(["Revisar diferencia", `Hay ${formatNumber(Math.abs(diferencia))} devices sin cuadrar contra producción.`]);
-  if (inventario < 20) alerts.push(["Inventario bajo", `Quedan ${formatNumber(inventario)} devices registrados como inventario.`]);
-  state.comodatos.filter((item) => item.estado === "REVISAR").forEach((item) => {
-    alerts.push(["Comodato por revisar", `${item.cliente} tiene ${item.devices} device(s) marcados para revisar.`]);
-  });
-  document.querySelector("#stockBadge").textContent = `${alerts.length} alerta(s)`;
-  document.querySelector("#alertsList").innerHTML = alerts.map(([title, body]) => (
-    `<div class="alert-item"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></div>`
-  )).join("") || `<div class="empty-state">Sin alertas críticas</div>`;
 }
 
 function renderMetric(metric) {
@@ -250,16 +201,17 @@ function updateManualDashboardValue(event) {
 
 function updateDashboardDerivedNumbers() {
   const dashboard = state.settings.dashboard || {};
-  const totalDevices = Number(dashboard.totalDevices || 0);
   const inventario = Number(state.settings.inventarioRedwood || 0);
+  const vendidos = Number(dashboard.vendidos || 0);
+  const comodato = Number(dashboard.comodato || 0);
   const totalProducidos = Number(state.settings.totalProducidos || 0);
-  const diferencia = getDashboardDifference(totalDevices, inventario, totalProducidos);
+  const diferencia = getDashboardDifference(inventario, vendidos, comodato, totalProducidos);
   const differenceEl = document.querySelector('[data-metric="diferencia"]');
   if (differenceEl) differenceEl.textContent = formatNumber(diferencia);
 }
 
-function getDashboardDifference(totalDevices, inventario, totalProducidos) {
-  return Number(totalDevices || 0) + Number(inventario || 0) - Number(totalProducidos || 0);
+function getDashboardDifference(inventario, vendidos, comodato, totalProducidos) {
+  return Number(inventario || 0) + Number(vendidos || 0) + Number(comodato || 0) - Number(totalProducidos || 0);
 }
 
 function renderDataTable(type) {
@@ -426,15 +378,14 @@ function status(value) {
   const text = value || "POR DEFINIR";
   let tone = "";
   if (["PAGADO", "VENTA CERRADA", "ENTREGADO", "EN INVENTARIO", "EN USO"].includes(text)) tone = "ok";
-  if (["PENDIENTE", "PARCIAL", "EN PROSPECCIÓN", "ENVIADO", "REVISAR"].includes(text)) tone = "warn";
-  if (["VENTA INCOMPLETA", "NO ENVIADO", "PERDIDO"].includes(text)) tone = "danger";
+  if (["PENDIENTE", "PARCIAL", "EN PROSPECCIÓN", "ENVIADO"].includes(text)) tone = "warn";
+  if (["VENTA INCOMPLETA", "NO ENVIADO"].includes(text)) tone = "danger";
   return `<span class="status ${tone}">${escapeHtml(text)}</span>`;
 }
 
 function exportExcel() {
   const workbook = {
     Clientes: state.clientes,
-    Dispositivos: state.dispositivos,
     Ventas: state.ventas,
     Comodatos: state.comodatos,
     Cobranza: getCobranzaRows()
@@ -521,9 +472,8 @@ function seedState() {
       dashboard: {
         ventasCerradas: 19,
         ventasIncompletas: 5,
-        prospeccion: 28,
-        comodato: 41,
-        totalDevices: 65
+        vendidos: 24,
+        comodato: 41
       }
     },
     clientes: [
@@ -591,7 +541,6 @@ function seedState() {
       { id: "CLI-062", nombre: "Billy", empresa: "", contacto: "", ciudad: "", telefono: "", email: "", fuente: "COMODATO", notas: "" },
       { id: "CLI-063", nombre: "Seleccion Mexicana", empresa: "", contacto: "", ciudad: "CDMX", telefono: "", email: "", fuente: "COMODATO", notas: "" }
     ],
-    dispositivos: [],
     ventas: [
       { id: "VEN-001", cliente: "Gerardo Torrado", contacto: "Gerardo Torrado - Dir. Deportivo", rep: "SEAN", devices: 1, monto: 6000, saldo: 0, estadoVenta: "VENTA CERRADA", estadoPago: "PAGADO", formaPago: "TRANSFERENCIA", entrega: "ENTREGADO", fechaEntrega: "Nov 29, 2025", ciudad: "MONTERREY", factura: "", notas: "" },
       { id: "VEN-002", cliente: "Pachuca", contacto: "Armando Martinez", rep: "PAKO", devices: 2, monto: 12000, saldo: 0, estadoVenta: "VENTA CERRADA", estadoPago: "PAGADO", formaPago: "TRANSFERENCIA", entrega: "ENTREGADO", fechaEntrega: "Nov 30, 2025", ciudad: "PACHUCA", factura: "SI", notas: "" },
@@ -642,23 +591,23 @@ function seedState() {
       { id: "VEN-047", cliente: "Elenna Lemus", contacto: "Jonathan - Sean", rep: "", devices: 1, monto: 0, saldo: 0, estadoVenta: "VENTA CERRADA", estadoPago: "", formaPago: "", entrega: "", fechaEntrega: "", ciudad: "", factura: "", notas: "" }
     ],
     comodatos: [
-      { id: "COM-001", cliente: "Rodrigo Aguirre / Tigres", contacto: "", rep: "SEAN", devices: 3, estado: "REVISAR", fechaEntrega: "Nov 2025", fechaDevolucion: "", ciudad: "MONTERREY", notas: "" },
+      { id: "COM-001", cliente: "Rodrigo Aguirre / Tigres", contacto: "", rep: "SEAN", devices: 3, estado: "EN USO", fechaEntrega: "Nov 2025", fechaDevolucion: "", ciudad: "MONTERREY", notas: "" },
       { id: "COM-002", cliente: "Joel Huiqui / Cruz Azul", contacto: "", rep: "SEAN", devices: 1, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-003", cliente: "Kings League", contacto: "", rep: "SEAN", devices: 1, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-004", cliente: "Alejandro Zendejas", contacto: "", rep: "SEAN", devices: 1, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-005", cliente: "Sport and Chips", contacto: "", rep: "PAKO", devices: 1, estado: "EN USO", fechaEntrega: "Nov 2025", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-006", cliente: "AFA Academy Gustavo Grossi", contacto: "", rep: "JORGE", devices: 1, estado: "EN USO", fechaEntrega: "feb-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-007", cliente: "Linda", contacto: "", rep: "BILLY", devices: 1, estado: "EN USO", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
-      { id: "COM-008", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
-      { id: "COM-009", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
-      { id: "COM-010", cliente: "Alejandro Vargas", contacto: "", rep: "JONATHAN", devices: 1, estado: "", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "GDL", notas: "" },
-      { id: "COM-011", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
-      { id: "COM-012", cliente: "Juan", contacto: "", rep: "JUAN", devices: 1, estado: "", fechaEntrega: "", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
+      { id: "COM-008", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "EN USO", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
+      { id: "COM-009", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "EN USO", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
+      { id: "COM-010", cliente: "Alejandro Vargas", contacto: "", rep: "JONATHAN", devices: 1, estado: "EN USO", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "GDL", notas: "" },
+      { id: "COM-011", cliente: "Fernando", contacto: "", rep: "BILLY", devices: 1, estado: "EN USO", fechaEntrega: "mar-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
+      { id: "COM-012", cliente: "Juan", contacto: "", rep: "JUAN", devices: 1, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "CDMX", notas: "" },
       { id: "COM-013", cliente: "Julian Argentina", contacto: "", rep: "JORGE", devices: 1, estado: "EN USO", fechaEntrega: "abr-26", fechaDevolucion: "", ciudad: "BUENOS AIRES", notas: "" },
-      { id: "COM-014", cliente: "America Femenil", contacto: "", rep: "SEAN", devices: 3, estado: "", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
-      { id: "COM-015", cliente: "Dary", contacto: "", rep: "SEAN", devices: 1, estado: "", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
-      { id: "COM-016", cliente: "Billy", contacto: "", rep: "BILLY", devices: 14, estado: "", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
-      { id: "COM-017", cliente: "Jonathan", contacto: "", rep: "JONATHAN", devices: 2, estado: "", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
+      { id: "COM-014", cliente: "America Femenil", contacto: "", rep: "SEAN", devices: 3, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
+      { id: "COM-015", cliente: "Dary", contacto: "", rep: "SEAN", devices: 1, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
+      { id: "COM-016", cliente: "Billy", contacto: "", rep: "BILLY", devices: 14, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
+      { id: "COM-017", cliente: "Jonathan", contacto: "", rep: "JONATHAN", devices: 2, estado: "EN USO", fechaEntrega: "", fechaDevolucion: "", ciudad: "", notas: "" },
       { id: "COM-018", cliente: "Seleccion Mexicana", contacto: "", rep: "FER", devices: 6, estado: "EN USO", fechaEntrega: "jun-26", fechaDevolucion: "", ciudad: "CDMX", notas: "" }
     ],
     cobranzaManual: [
