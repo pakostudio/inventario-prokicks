@@ -95,7 +95,6 @@ const els = {
   search: document.querySelector("#globalSearch"),
   newBtn: document.querySelector("#newRecordBtn"),
   exportBtn: document.querySelector("#exportExcelBtn"),
-  resetBtn: document.querySelector("#resetDemoBtn"),
   metricGrid: document.querySelector("#metricGrid"),
   dialog: document.querySelector("#recordDialog"),
   form: document.querySelector("#recordForm"),
@@ -113,12 +112,6 @@ els.newBtn.addEventListener("click", () => openForm(activeView));
 els.exportBtn.addEventListener("click", exportExcel);
 els.metricGrid.addEventListener("input", updateManualDashboardValue);
 els.metricGrid.addEventListener("change", renderDashboard);
-els.resetBtn.addEventListener("click", () => {
-  if (!confirm("Esto reemplazará los datos actuales por la demo inicial.")) return;
-  state = seedState();
-  saveState();
-  render();
-});
 
 document.querySelector("#closeDialogBtn").addEventListener("click", closeForm);
 document.querySelector("#cancelDialogBtn").addEventListener("click", closeForm);
