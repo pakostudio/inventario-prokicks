@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ProKicks Control de Inventario</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">PK</span>
+          <div>
+            <h1>ProKicks</h1>
+            <p>Control de inventario</p>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="Secciones">
+          <button class="nav-item is-active" data-view="dashboard" type="button">Dashboard</button>
+          <button class="nav-item" data-view="clientes" type="button">Clientes</button>
+          <button class="nav-item" data-view="dispositivos" type="button">Dispositivos</button>
+          <button class="nav-item" data-view="ventas" type="button">Ventas</button>
+          <button class="nav-item" data-view="comodatos" type="button">Comodatos</button>
+          <button class="nav-item" data-view="cobranza" type="button">Cobranza</button>
+        </nav>
+
+        <div class="sidebar-actions">
+          <button class="secondary-btn" id="exportExcelBtn" type="button">Exportar Excel</button>
+          <button class="secondary-btn danger" id="resetDemoBtn" type="button">Restaurar demo</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Administrador</p>
+            <h2 id="viewTitle">Dashboard</h2>
+          </div>
+          <div class="topbar-actions">
+            <label class="search">
+              <span>Buscar</span>
+              <input id="globalSearch" type="search" placeholder="Cliente, rep, ciudad...">
+            </label>
+            <button class="primary-btn" id="newRecordBtn" type="button">Nuevo registro</button>
+          </div>
+        </header>
+
+        <section id="view-dashboard" class="view is-active">
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="split-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Cobranza pendiente</h3>
+                <span id="pendingTotalBadge"></span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Rep</th>
+                      <th>Saldo</th>
+                      <th>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dashboardCobranza"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h3>Alertas de inventario</h3>
+                <span id="stockBadge"></span>
+              </div>
+              <div id="alertsList" class="alerts-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="view-clientes" class="view">
+          <div id="clientesTable" class="data-view"></div>
+        </section>
+
+        <section id="view-dispositivos" class="view">
+          <div id="dispositivosTable" class="data-view"></div>
+        </section>
+
+        <section id="view-ventas" class="view">
+          <div id="ventasTable" class="data-view"></div>
+        </section>
+
+        <section id="view-comodatos" class="view">
+          <div id="comodatosTable" class="data-view"></div>
+        </section>
+
+        <section id="view-cobranza" class="view">
+          <div id="cobranzaTable" class="data-view"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="recordDialog">
+      <form method="dialog" id="recordForm">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow" id="dialogMode">Nuevo</p>
+            <h3 id="dialogTitle">Registro</h3>
+          </div>
+          <button class="icon-btn" value="cancel" type="button" id="closeDialogBtn" aria-label="Cerrar">x</button>
+        </div>
+        <div class="form-grid" id="formFields"></div>
+        <div class="dialog-actions">
+          <button class="secondary-btn" value="cancel" type="button" id="cancelDialogBtn">Cancelar</button>
+          <button class="primary-btn" value="default" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
