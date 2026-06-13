@@ -1,4 +1,4 @@
-const STORAGE_KEY = "prokicks-control-v3";
+const STORAGE_KEY = "prokicks-control-v4";
 
 const schemas = {
   clientes: {
@@ -118,6 +118,7 @@ const els = {
   newBtn: document.querySelector("#newRecordBtn"),
   exportBtn: document.querySelector("#exportExcelBtn"),
   resetBtn: document.querySelector("#resetDemoBtn"),
+  metricGrid: document.querySelector("#metricGrid"),
   dialog: document.querySelector("#recordDialog"),
   form: document.querySelector("#recordForm"),
   formFields: document.querySelector("#formFields"),
@@ -132,6 +133,8 @@ document.querySelectorAll(".nav-item").forEach((button) => {
 els.search.addEventListener("input", render);
 els.newBtn.addEventListener("click", () => openForm(activeView));
 els.exportBtn.addEventListener("click", exportExcel);
+els.metricGrid.addEventListener("input", updateManualDashboardValue);
+els.metricGrid.addEventListener("change", renderDashboard);
 els.resetBtn.addEventListener("click", () => {
   if (!confirm("Esto reemplazará los datos actuales por la demo inicial.")) return;
   state = seedState();
@@ -189,22 +192,20 @@ function renderDashboard() {
   const prospeccionCount = dashboard.prospeccion ?? prospeccion.length;
   const comodatoCount = dashboard.comodato ?? comodatoDevices;
   const totalDevices = dashboard.totalDevices ?? ventaDevices + comodatoDevices;
-  const diferencia = dashboard.diferencia ?? totalProducidos - inventario - totalDevices;
+  const diferencia = getDashboardDifference(totalDevices, inventario, totalProducidos);
 
   const metrics = [
-    ["Ventas cerradas", ventasCerradasCount],
-    ["Venta incompleta", ventasIncompletasCount],
-    ["Prospección", prospeccionCount],
-    ["En comodato", comodatoCount],
-    ["Total devices", totalDevices],
-    ["Inventario local", inventario],
-    ["Producidos", totalProducidos],
-    ["Diferencia", diferencia]
+    { label: "Ventas cerradas", value: ventasCerradasCount },
+    { label: "Venta incompleta", value: ventasIncompletasCount },
+    { label: "Prospección", value: prospeccionCount },
+    { label: "En comodato", value: comodatoCount },
+    { label: "Total devices", value: totalDevices, key: "totalDevices" },
+    { label: "Inventario local", value: inventario, key: "inventarioRedwood", editable: true },
+    { label: "Producidos", value: totalProducidos, key: "totalProducidos", editable: true },
+    { label: "Diferencia", value: diferencia, key: "diferencia" }
   ];
 
-  document.querySelector("#metricGrid").innerHTML = metrics.map(([label, value]) => (
-    `<article class="metric"><span>${escapeHtml(label)}</span><strong>${formatNumber(value)}</strong></article>`
-  )).join("");
+  els.metricGrid.innerHTML = metrics.map(renderMetric).join("");
 
   const cobranza = getCobranzaRows();
   document.querySelector("#pendingTotalBadge").textContent = formatCurrency(sum(cobranza, "saldo"));
@@ -227,6 +228,38 @@ function renderDashboard() {
   document.querySelector("#alertsList").innerHTML = alerts.map(([title, body]) => (
     `<div class="alert-item"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(body)}</span></div>`
   )).join("") || `<div class="empty-state">Sin alertas críticas</div>`;
+}
+
+function renderMetric(metric) {
+  const editable = metric.editable ? " is-editable" : "";
+  const value = Number(metric.value || 0);
+  const body = metric.editable
+    ? `<input class="metric-input" data-setting="${metric.key}" type="number" min="0" step="1" value="${value}" aria-label="${escapeAttr(metric.label)}">`
+    : `<strong data-metric="${escapeAttr(metric.key || "")}">${formatNumber(value)}</strong>`;
+  return `<article class="metric${editable}"><span>${escapeHtml(metric.label)}</span>${body}</article>`;
+}
+
+function updateManualDashboardValue(event) {
+  const input = event.target.closest("[data-setting]");
+  if (!input) return;
+  const value = Math.max(0, Number(input.value || 0));
+  state.settings[input.dataset.setting] = value;
+  saveState();
+  updateDashboardDerivedNumbers();
+}
+
+function updateDashboardDerivedNumbers() {
+  const dashboard = state.settings.dashboard || {};
+  const totalDevices = Number(dashboard.totalDevices || 0);
+  const inventario = Number(state.settings.inventarioRedwood || 0);
+  const totalProducidos = Number(state.settings.totalProducidos || 0);
+  const diferencia = getDashboardDifference(totalDevices, inventario, totalProducidos);
+  const differenceEl = document.querySelector('[data-metric="diferencia"]');
+  if (differenceEl) differenceEl.textContent = formatNumber(diferencia);
+}
+
+function getDashboardDifference(totalDevices, inventario, totalProducidos) {
+  return Number(totalDevices || 0) + Number(inventario || 0) - Number(totalProducidos || 0);
 }
 
 function renderDataTable(type) {
@@ -490,8 +523,7 @@ function seedState() {
         ventasIncompletas: 5,
         prospeccion: 28,
         comodato: 41,
-        totalDevices: 65,
-        diferencia: 7
+        totalDevices: 65
       }
     },
     clientes: [
